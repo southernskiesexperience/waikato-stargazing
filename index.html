@@ -567,30 +567,34 @@
       <h2>Log tonight's decision</h2>
       <p class="muted">Record the guide's call once the forecast has been reviewed. This is saved against today's date and the currently selected location.</p>
 
-      <div class="controls">
-        <label>Guide name
-          <select id="guideNameInput">
-            <option value="" selected disabled>Select guide…</option>
-            <option value="Meghan">Meghan</option>
-            <option value="Rachel">Rachel</option>
-          </select>
-        </label>
+      <div id="logDecisionAlready" style="display:none;"></div>
 
-        <label>Manual decision
-          <select id="guideDecisionSelect">
-            <option value="Run">Run</option>
-            <option value="No-run">No-run</option>
-          </select>
-        </label>
+      <div id="logDecisionFormWrap">
+        <div class="controls">
+          <label>Guide name
+            <select id="guideNameInput">
+              <option value="" selected disabled>Select guide…</option>
+              <option value="Meghan">Meghan</option>
+              <option value="Rachel">Rachel</option>
+            </select>
+          </label>
 
-        <label style="flex:1; min-width:220px;">Notes
-          <input type="text" id="guideDecisionNotes" placeholder="Optional notes" autocomplete="off" />
-        </label>
+          <label>Manual decision
+            <select id="guideDecisionSelect">
+              <option value="Run">Run</option>
+              <option value="No-run">No-run</option>
+            </select>
+          </label>
 
-        <button id="logDecisionButton" class="btn-refresh">Log decision</button>
+          <label style="flex:1; min-width:220px;">Notes
+            <input type="text" id="guideDecisionNotes" placeholder="Optional notes" autocomplete="off" />
+          </label>
+
+          <button id="logDecisionButton" class="btn-refresh">Log decision</button>
+        </div>
+
+        <div id="logDecisionStatus" class="status"></div>
       </div>
-
-      <div id="logDecisionStatus" class="status"></div>
     </section>
 
     <section class="panel" id="reviewYesterdayPanel">
@@ -869,6 +873,7 @@
     loadAllModels();
     loadReviewYesterday();
     loadHistory();
+    checkTodayLogStatus();
     }
 
     function buildUrl(endpoint) {
@@ -1693,6 +1698,7 @@
         statusEl.className = "status good";
 
         loadHistory();
+        checkTodayLogStatus();
       } catch (err) {
         console.error(err);
         statusEl.textContent =
@@ -1875,9 +1881,61 @@
       }
     }
 
+    /* ---------- Enforce one log entry per location per day ---------- */
+
+    async function checkTodayLogStatus() {
+      const locationKey = el("locationSelect").value;
+      const todayKey = dateToString(todayNzMidnight());
+      const alreadyEl = el("logDecisionAlready");
+      const formWrap = el("logDecisionFormWrap");
+
+      let rows;
+      try {
+        rows = await fetchLogRows();
+      } catch (err) {
+        console.error(err);
+        // If the log can't be reached, fail open so guides aren't blocked
+        // from logging just because the read failed.
+        alreadyEl.style.display = "none";
+        formWrap.style.display = "block";
+        return;
+      }
+
+      const match = rows.find(
+        r => r.date === todayKey && r.location === locationKey
+      );
+
+      if (!match) {
+        alreadyEl.style.display = "none";
+        formWrap.style.display = "block";
+        return;
+      }
+
+      formWrap.style.display = "none";
+      alreadyEl.style.display = "block";
+      alreadyEl.innerHTML = `
+        <p class="good"><strong>Already logged today by ${match.guideName || "—"}.</strong></p>
+        <p class="muted">
+          Forecast: ${match.forecastDecisionLabel || "—"} ·
+          Manual call: <strong>${match.guideManualDecision || "—"}</strong>
+          ${match.guideDecisionNotes ? " · " + match.guideDecisionNotes : ""}
+        </p>
+        <button id="editTodayLogButton" class="btn-refresh" style="margin-top:8px;">Edit entry</button>
+      `;
+
+      el("editTodayLogButton").addEventListener("click", () => {
+        el("guideNameInput").value = match.guideName || "";
+        el("guideDecisionSelect").value = match.guideManualDecision || "Run";
+        el("guideDecisionNotes").value = match.guideDecisionNotes || "";
+        alreadyEl.style.display = "none";
+        formWrap.style.display = "block";
+      });
+    }
+
     loadAllModels();
     loadReviewYesterday();
     loadHistory();
+    checkTodayLogStatus();
   </script>
 </body>
 </html>
