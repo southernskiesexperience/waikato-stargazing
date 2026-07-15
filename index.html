@@ -562,9 +562,65 @@
         </article>
       </div>
     </section>
+
+    <section class="panel" id="logDecisionPanel">
+      <h2>Log tonight's decision</h2>
+      <p class="muted">Record the guide's call once the forecast has been reviewed. This is saved against today's date and the currently selected location.</p>
+
+      <div class="controls">
+        <label>Guide name
+          <input type="text" id="guideNameInput" placeholder="e.g. Jamie" autocomplete="off" />
+        </label>
+
+        <label>Manual decision
+          <select id="guideDecisionSelect">
+            <option value="Run">Run</option>
+            <option value="No-run">No-run</option>
+          </select>
+        </label>
+
+        <label style="flex:1; min-width:220px;">Notes
+          <input type="text" id="guideDecisionNotes" placeholder="Optional notes" autocomplete="off" />
+        </label>
+
+        <button id="logDecisionButton" class="btn-refresh">Log decision</button>
+      </div>
+
+      <div id="logDecisionStatus" class="status"></div>
+    </section>
+
+    <section class="panel" id="reviewYesterdayPanel">
+      <h2>Review yesterday</h2>
+      <p class="muted">Compare yesterday's forecast against what Open-Meteo shows actually happened, and add the guide's own assessment.</p>
+      <div id="reviewYesterdayContent">
+        <p class="muted">Loading yesterday's log…</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Decision history</h2>
+      <p class="small" style="margin-bottom:8px;">On mobile, swipe sideways to view the full table.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Location</th><th>Guide</th><th>Forecast</th>
+              <th>Forecast cloud</th><th>Manual call</th><th>Actual cloud</th>
+              <th>Vs forecast</th><th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="9" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <script>
+    // Paste your Apps Script Web App URL here after deploying Code.gs (see setup notes).
+    const LOG_API_URL = "https://script.google.com/macros/s/AKfycbyC4t7Fu86PMcgvVr5zGENf-j0A1YPPK929zigHBYu1IoCOm2jz1XPzhJDrODN3ko3eug/exec";
+
     const LOCATIONS = {
       waikato: {
         name: "Waikato — Takapoto Estate",
@@ -645,9 +701,7 @@
       return nowNz;
     }
 
-    function automaticSchedule() {
-      const locationKey = el("locationSelect").value;
-      const date = selectedForecastDate();
+    function scheduleForDate(locationKey, date) {
       const md = monthDay(date);
       const schedule = TOUR_SCHEDULES[locationKey];
 
@@ -660,6 +714,10 @@
         assessmentStart: Math.floor(match.tourStart),
         assessmentEnd: Math.floor(match.tourStart) + 3
       };
+    }
+
+    function automaticSchedule() {
+      return scheduleForDate(el("locationSelect").value, selectedForecastDate());
     }
 
     function formatDecimalHour(hour) {
@@ -805,6 +863,8 @@
       updateAutomaticWindowDisplay();
     updateWindyMaps();
     loadAllModels();
+    loadReviewYesterday();
+    loadHistory();
     }
 
     function buildUrl(endpoint) {
@@ -939,6 +999,31 @@
           )
         );
       });
+    }
+
+    function summaryForDate(rows, locationKey, date) {
+      const schedule = scheduleForDate(locationKey, date);
+      const start = schedule.assessmentStart;
+      const end = schedule.assessmentEnd;
+      const targetDate = dateToString(date);
+      const nextDateObject = new Date(date);
+      nextDateObject.setDate(nextDateObject.getDate() + 1);
+      const nextDate = dateToString(nextDateObject);
+
+      const filtered = rows.filter(row => {
+        if (end < 24) {
+          return row.date === targetDate && row.hour >= start && row.hour <= end;
+        }
+
+        const afterMidnightEnd = end - 24;
+
+        return (
+          (row.date === targetDate && row.hour >= start) ||
+          (row.date === nextDate && row.hour <= afterMidnightEnd)
+        );
+      });
+
+      return filtered.length ? summarise(filtered) : null;
     }
 
     function valid(values) {
@@ -1507,7 +1592,288 @@
       });
     }
 
+    /* ---------- Decision log: Google Sheet API helpers ---------- */
+
+    async function fetchLogRows() {
+      const response = await fetch(LOG_API_URL, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`Log fetch failed: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.rows || [];
+    }
+
+    async function postLogRow(payload) {
+      const response = await fetch(LOG_API_URL, {
+        method: "POST",
+        // text/plain avoids a CORS preflight that Apps Script web apps don't handle.
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Log save failed: HTTP ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    function todayNzMidnight() {
+      const now = new Date(
+        new Date().toLocaleString("en-US", { timeZone: "Pacific/Auckland" })
+      );
+      now.setHours(0, 0, 0, 0);
+      return now;
+    }
+
+    /* ---------- Log tonight's decision ---------- */
+
+    function getTodaySnapshot() {
+      const locationKey = el("locationSelect").value;
+      const today = todayNzMidnight();
+
+      const summaries = {};
+      ["best", "ecmwf", "gfs", "icon"].forEach(key => {
+        summaries[key] = summaryForDate(state.rows[key], locationKey, today);
+      });
+
+      return { locationKey, date: dateToString(today), summaries };
+    }
+
+    el("logDecisionButton").addEventListener("click", async () => {
+      const statusEl = el("logDecisionStatus");
+      const guideName = el("guideNameInput").value.trim();
+
+      if (!guideName) {
+        statusEl.textContent = "Enter the guide's name before logging.";
+        statusEl.className = "status warn";
+        return;
+      }
+
+      const snapshot = getTodaySnapshot();
+
+      if (!snapshot.summaries.best) {
+        statusEl.textContent =
+          "Best Match forecast for today hasn't loaded yet — click Refresh all models, then try again.";
+        statusEl.className = "status warn";
+        return;
+      }
+
+      const decision = operationalAssessment(snapshot.summaries.best);
+      const confidence = confidenceAssessment(snapshot.summaries);
+
+      statusEl.textContent = "Saving…";
+      statusEl.className = "status";
+
+      try {
+        await postLogRow({
+          date: snapshot.date,
+          location: snapshot.locationKey,
+          guideName,
+          decisionTimestamp: new Date().toISOString(),
+          forecastDecisionLabel: decision.label,
+          forecastCloudBest: fmt(snapshot.summaries.best?.cloud),
+          forecastCloudECMWF: fmt(snapshot.summaries.ecmwf?.cloud),
+          forecastCloudGFS: fmt(snapshot.summaries.gfs?.cloud),
+          forecastCloudICON: fmt(snapshot.summaries.icon?.cloud),
+          confidenceLabel: confidence.label,
+          guideManualDecision: el("guideDecisionSelect").value,
+          guideDecisionNotes: el("guideDecisionNotes").value
+        });
+
+        statusEl.textContent =
+          `Logged for ${snapshot.date}: forecast said ${decision.label}, ` +
+          `guide chose ${el("guideDecisionSelect").value}.`;
+        statusEl.className = "status good";
+
+        loadHistory();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent =
+          "Couldn't save — check LOG_API_URL is set correctly and try again.";
+        statusEl.className = "status bad";
+      }
+    });
+
+    /* ---------- Review yesterday ---------- */
+
+    async function fetchActualCloudForDate(locationKey, date) {
+      const location = LOCATIONS[locationKey];
+
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${location.latitude}` +
+        `&longitude=${location.longitude}` +
+        `&hourly=${HOURLY_FIELDS}` +
+        `&timezone=Pacific%2FAuckland` +
+        `&past_days=3&forecast_days=1`;
+
+      const response = await fetch(url, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`Open-Meteo actuals fetch failed: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rows = parseHourly(data.hourly);
+      return summaryForDate(rows, locationKey, date);
+    }
+
+    async function loadReviewYesterday() {
+      const container = el("reviewYesterdayContent");
+      container.innerHTML = '<p class="muted">Loading yesterday\u2019s log\u2026</p>';
+
+      const locationKey = el("locationSelect").value;
+      const today = todayNzMidnight();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayKey = dateToString(yesterday);
+
+      let rows;
+      try {
+        rows = await fetchLogRows();
+      } catch (err) {
+        console.error(err);
+        container.innerHTML =
+          '<p class="bad">Could not reach the log. Check LOG_API_URL is set correctly.</p>';
+        return;
+      }
+
+      const match = rows.find(
+        r => r.date === yesterdayKey && r.location === locationKey
+      );
+
+      if (!match) {
+        container.innerHTML =
+          `<p class="muted">No decision was logged for ${yesterdayKey} at ` +
+          `${LOCATIONS[locationKey].name}.</p>`;
+        return;
+      }
+
+      if (match.actualCloudObserved !== undefined && match.actualCloudObserved !== "") {
+        container.innerHTML = `
+          <p class="good"><strong>Already reviewed.</strong></p>
+          <p class="muted">
+            Forecast cloud: ${match.forecastCloudBest ?? "—"}% ·
+            Actual cloud: ${match.actualCloudObserved}% ·
+            Guide assessment: ${match.actualVsForecast || "—"}
+          </p>
+          <p class="muted">${match.guideReviewNotes || ""}</p>
+        `;
+        return;
+      }
+
+      let actualSummary = null;
+      try {
+        actualSummary = await fetchActualCloudForDate(locationKey, yesterday);
+      } catch (err) {
+        console.error(err);
+      }
+
+      const actualCloud = actualSummary ? actualSummary.cloud : null;
+
+      container.innerHTML = `
+        <p class="muted">
+          Logged by <strong>${match.guideName || "—"}</strong>:
+          forecast said <strong>${match.forecastDecisionLabel || "—"}</strong>
+          (Best Match cloud ${match.forecastCloudBest ?? "—"}%).
+          Manual call: <strong>${match.guideManualDecision || "—"}</strong>.
+        </p>
+
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">Forecast cloud (Best Match)</span>
+            <span class="metric-value">${match.forecastCloudBest ?? "—"}%</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Actual cloud (Open-Meteo)</span>
+            <span class="metric-value">${Number.isFinite(actualCloud) ? actualCloud.toFixed(0) : "—"}%</span>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:12px;">
+          <label>Guide assessment
+            <select id="guideAssessmentSelect">
+              <option value="Same">Same as forecast</option>
+              <option value="Better">Better than forecast</option>
+              <option value="Worse">Worse than forecast</option>
+            </select>
+          </label>
+          <label style="flex:1; min-width:220px;">Notes
+            <input type="text" id="guideReviewNotes" placeholder="Optional notes" autocomplete="off" />
+          </label>
+          <button id="submitReviewButton" class="btn-refresh">Save review</button>
+        </div>
+        <div id="reviewStatus" class="status"></div>
+      `;
+
+      el("submitReviewButton").addEventListener("click", async () => {
+        const reviewStatusEl = el("reviewStatus");
+        reviewStatusEl.textContent = "Saving…";
+
+        try {
+          await postLogRow({
+            date: yesterdayKey,
+            location: locationKey,
+            reviewTimestamp: new Date().toISOString(),
+            actualCloudObserved: Number.isFinite(actualCloud) ? actualCloud.toFixed(0) : "",
+            actualVsForecast: el("guideAssessmentSelect").value,
+            guideReviewNotes: el("guideReviewNotes").value
+          });
+
+          reviewStatusEl.textContent = "Saved.";
+          reviewStatusEl.className = "status good";
+          loadReviewYesterday();
+          loadHistory();
+        } catch (err) {
+          console.error(err);
+          reviewStatusEl.textContent = "Couldn't save — try again.";
+          reviewStatusEl.className = "status bad";
+        }
+      });
+    }
+
+    /* ---------- Decision history ---------- */
+
+    async function loadHistory() {
+      const body = el("historyBody");
+
+      try {
+        const rows = await fetchLogRows();
+
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="9" class="muted">No entries yet.</td></tr>';
+          return;
+        }
+
+        const sorted = rows
+          .slice()
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+        body.innerHTML = sorted.map(r => `
+          <tr>
+            <td>${r.date || "—"}</td>
+            <td>${LOCATIONS[r.location]?.name || r.location || "—"}</td>
+            <td>${r.guideName || "—"}</td>
+            <td>${r.forecastDecisionLabel || "—"}</td>
+            <td>${r.forecastCloudBest !== undefined && r.forecastCloudBest !== "" ? r.forecastCloudBest + "%" : "—"}</td>
+            <td>${r.guideManualDecision || "—"}</td>
+            <td>${r.actualCloudObserved !== undefined && r.actualCloudObserved !== "" ? r.actualCloudObserved + "%" : "—"}</td>
+            <td>${r.actualVsForecast || "—"}</td>
+            <td>${[r.guideDecisionNotes, r.guideReviewNotes].filter(Boolean).join(" / ") || "—"}</td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        console.error(err);
+        body.innerHTML = '<tr><td colspan="9" class="bad">Could not load log. Check LOG_API_URL.</td></tr>';
+      }
+    }
+
     loadAllModels();
+    loadReviewYesterday();
+    loadHistory();
   </script>
 </body>
 </html>
