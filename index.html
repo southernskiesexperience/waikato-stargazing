@@ -579,7 +579,14 @@
             </select>
           </label>
 
-          <label>Manual decision
+          <label>Entry type
+            <select id="entryTypeSelect">
+              <option value="Tour" selected>Tour night (booked)</option>
+              <option value="WeatherOnly">Weather check (no tour)</option>
+            </select>
+          </label>
+
+          <label id="manualDecisionLabel">Manual decision
             <select id="guideDecisionSelect">
               <option value="Run">Run</option>
               <option value="No-run">No-run</option>
@@ -607,18 +614,19 @@
 
     <section class="panel">
       <h2>Decision history</h2>
+      <p class="muted">Showing the past 7 days only. The Google Sheet keeps the full record for deeper analysis.</p>
       <p class="small" style="margin-bottom:8px;">On mobile, swipe sideways to view the full table.</p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Location</th><th>Guide</th><th>Forecast</th>
+              <th>Date</th><th>Location</th><th>Entry type</th><th>Guide</th><th>Forecast</th>
               <th>Forecast cloud</th><th>Manual call</th><th>Actual cloud</th>
-              <th>Vs forecast</th><th>Notes</th>
+              <th>Vs forecast</th><th>Reviewed by</th><th>Notes</th>
             </tr>
           </thead>
           <tbody id="historyBody">
-            <tr><td colspan="9" class="muted">Loading…</td></tr>
+            <tr><td colspan="11" class="muted">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -796,6 +804,11 @@
     el("forecastDay").addEventListener("change", () => {
       updateAutomaticWindowDisplay();
       render();
+    });
+
+    el("entryTypeSelect").addEventListener("change", () => {
+      el("manualDecisionLabel").style.display =
+        el("entryTypeSelect").value === "WeatherOnly" ? "none" : "flex";
     });
 
     function updateWindyMaps() {
@@ -1672,6 +1685,9 @@
 
       const decision = operationalAssessment(snapshot.summaries.best);
       const confidence = confidenceAssessment(snapshot.summaries);
+      const entryType = el("entryTypeSelect").value;
+      const manualDecision =
+        entryType === "WeatherOnly" ? "N/A" : el("guideDecisionSelect").value;
 
       statusEl.textContent = "Saving…";
       statusEl.className = "status";
@@ -1681,6 +1697,7 @@
           date: snapshot.date,
           location: snapshot.locationKey,
           guideName,
+          entryType,
           decisionTimestamp: new Date().toISOString(),
           forecastDecisionLabel: decision.label,
           forecastCloudBest: fmt(snapshot.summaries.best?.cloud),
@@ -1688,13 +1705,14 @@
           forecastCloudGFS: fmt(snapshot.summaries.gfs?.cloud),
           forecastCloudICON: fmt(snapshot.summaries.icon?.cloud),
           confidenceLabel: confidence.label,
-          guideManualDecision: el("guideDecisionSelect").value,
+          guideManualDecision: manualDecision,
           guideDecisionNotes: el("guideDecisionNotes").value
         });
 
-        statusEl.textContent =
-          `Logged for ${snapshot.date}: forecast said ${decision.label}, ` +
-          `guide chose ${el("guideDecisionSelect").value}.`;
+        statusEl.textContent = entryType === "WeatherOnly"
+          ? `Logged weather check for ${snapshot.date}: forecast said ${decision.label}.`
+          : `Logged for ${snapshot.date}: forecast said ${decision.label}, ` +
+            `guide chose ${manualDecision}.`;
         statusEl.className = "status good";
 
         loadHistory();
@@ -1764,7 +1782,7 @@
 
       if (match.actualCloudObserved !== undefined && match.actualCloudObserved !== "") {
         container.innerHTML = `
-          <p class="good"><strong>Already reviewed.</strong></p>
+          <p class="good"><strong>Already reviewed${match.reviewGuideName ? " by " + match.reviewGuideName : ""}</strong> — ${entryTypeLabel(match.entryType)}.</p>
           <p class="muted">
             Forecast cloud: ${match.forecastCloudBest ?? "—"}% ·
             Actual cloud: ${match.actualCloudObserved}% ·
@@ -1786,7 +1804,7 @@
 
       container.innerHTML = `
         <p class="muted">
-          Logged by <strong>${match.guideName || "—"}</strong>:
+          Logged by <strong>${match.guideName || "—"}</strong> — ${entryTypeLabel(match.entryType)}:
           forecast said <strong>${match.forecastDecisionLabel || "—"}</strong>
           (Best Match cloud ${match.forecastCloudBest ?? "—"}%).
           Manual call: <strong>${match.guideManualDecision || "—"}</strong>.
@@ -1804,6 +1822,13 @@
         </div>
 
         <div class="controls" style="margin-top:12px;">
+          <label>Reviewed by
+            <select id="reviewGuideNameSelect">
+              <option value="" selected disabled>Select guide…</option>
+              <option value="Meghan">Meghan</option>
+              <option value="Rachel">Rachel</option>
+            </select>
+          </label>
           <label>Guide assessment
             <select id="guideAssessmentSelect">
               <option value="Same">Same as forecast</option>
@@ -1821,13 +1846,23 @@
 
       el("submitReviewButton").addEventListener("click", async () => {
         const reviewStatusEl = el("reviewStatus");
+        const reviewGuideName = el("reviewGuideNameSelect").value;
+
+        if (!reviewGuideName) {
+          reviewStatusEl.textContent = "Select which guide is doing the review.";
+          reviewStatusEl.className = "status warn";
+          return;
+        }
+
         reviewStatusEl.textContent = "Saving…";
+        reviewStatusEl.className = "status";
 
         try {
           await postLogRow({
             date: yesterdayKey,
             location: locationKey,
             reviewTimestamp: new Date().toISOString(),
+            reviewGuideName,
             actualCloudObserved: Number.isFinite(actualCloud) ? actualCloud.toFixed(0) : "",
             actualVsForecast: el("guideAssessmentSelect").value,
             guideReviewNotes: el("guideReviewNotes").value
@@ -1847,6 +1882,16 @@
 
     /* ---------- Decision history ---------- */
 
+    // Dashboard only shows recent entries — full history always remains in
+    // the Google Sheet itself for deeper analysis.
+    const HISTORY_DISPLAY_DAYS = 7;
+
+    function historyCutoffDateKey() {
+      const cutoff = todayNzMidnight();
+      cutoff.setDate(cutoff.getDate() - (HISTORY_DISPLAY_DAYS - 1));
+      return dateToString(cutoff);
+    }
+
     async function loadHistory() {
       const body = el("historyBody");
 
@@ -1854,11 +1899,21 @@
         const rows = await fetchLogRows();
 
         if (!rows.length) {
-          body.innerHTML = '<tr><td colspan="9" class="muted">No entries yet.</td></tr>';
+          body.innerHTML = '<tr><td colspan="11" class="muted">No entries yet.</td></tr>';
           return;
         }
 
-        const sorted = rows
+        const cutoffKey = historyCutoffDateKey();
+        const recent = rows.filter(r => r.date >= cutoffKey);
+
+        if (!recent.length) {
+          body.innerHTML =
+            `<tr><td colspan="11" class="muted">No entries in the past ${HISTORY_DISPLAY_DAYS} days. ` +
+            `Full history is available in the Google Sheet.</td></tr>`;
+          return;
+        }
+
+        const sorted = recent
           .slice()
           .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
@@ -1866,22 +1921,30 @@
           <tr>
             <td>${r.date || "—"}</td>
             <td>${LOCATIONS[r.location]?.name || r.location || "—"}</td>
+            <td>${entryTypeLabel(r.entryType)}</td>
             <td>${r.guideName || "—"}</td>
             <td>${r.forecastDecisionLabel || "—"}</td>
             <td>${r.forecastCloudBest !== undefined && r.forecastCloudBest !== "" ? r.forecastCloudBest + "%" : "—"}</td>
             <td>${r.guideManualDecision || "—"}</td>
             <td>${r.actualCloudObserved !== undefined && r.actualCloudObserved !== "" ? r.actualCloudObserved + "%" : "—"}</td>
             <td>${r.actualVsForecast || "—"}</td>
+            <td>${r.reviewGuideName || "—"}</td>
             <td>${[r.guideDecisionNotes, r.guideReviewNotes].filter(Boolean).join(" / ") || "—"}</td>
           </tr>
         `).join("");
       } catch (err) {
         console.error(err);
-        body.innerHTML = '<tr><td colspan="9" class="bad">Could not load log. Check LOG_API_URL.</td></tr>';
+        body.innerHTML = '<tr><td colspan="11" class="bad">Could not load log. Check LOG_API_URL.</td></tr>';
       }
     }
 
     /* ---------- Enforce one log entry per location per day ---------- */
+
+    // Legacy rows logged before this field existed default to "Tour",
+    // since every entry was implicitly a tour night at that point.
+    function entryTypeLabel(value) {
+      return value === "WeatherOnly" ? "Weather check" : "Tour night";
+    }
 
     async function checkTodayLogStatus() {
       const locationKey = el("locationSelect").value;
@@ -1914,7 +1977,7 @@
       formWrap.style.display = "none";
       alreadyEl.style.display = "block";
       alreadyEl.innerHTML = `
-        <p class="good"><strong>Already logged today by ${match.guideName || "—"}.</strong></p>
+        <p class="good"><strong>Already logged today by ${match.guideName || "—"} — ${entryTypeLabel(match.entryType)}.</strong></p>
         <p class="muted">
           Forecast: ${match.forecastDecisionLabel || "—"} ·
           Manual call: <strong>${match.guideManualDecision || "—"}</strong>
@@ -1925,7 +1988,11 @@
 
       el("editTodayLogButton").addEventListener("click", () => {
         el("guideNameInput").value = match.guideName || "";
-        el("guideDecisionSelect").value = match.guideManualDecision || "Run";
+        el("entryTypeSelect").value = match.entryType === "WeatherOnly" ? "WeatherOnly" : "Tour";
+        el("manualDecisionLabel").style.display =
+          el("entryTypeSelect").value === "WeatherOnly" ? "none" : "flex";
+        el("guideDecisionSelect").value =
+          match.guideManualDecision === "No-run" ? "No-run" : "Run";
         el("guideDecisionNotes").value = match.guideDecisionNotes || "";
         alreadyEl.style.display = "none";
         formWrap.style.display = "block";
