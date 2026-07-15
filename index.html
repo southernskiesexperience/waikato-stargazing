@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Southern Skies Weather Checker</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: #10233a;
+      --panel2: #162d49;
+      --text: #f4f7fb;
+      --muted: #afbed1;
+      --border: #304761;
+      --green: #57dc98;
+      --amber: #ffd166;
+      --red: #ff7777;
+      --blue: #72b7ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1150px;
+      margin: 0 auto;
+    }
+
+    h1 { margin-bottom: 6px; }
+    h2 { margin-top: 30px; }
+
+    .intro, .status, .small {
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
+      margin: 22px 0;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    select, button {
+      min-height: 42px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+    }
+
+    select {
+      background: #0b192b;
+      color: var(--text);
+    }
+
+    button {
+      border: none;
+      background: #3478c9;
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover { background: #448bdd; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .card {
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .detail {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .definite, .calm, .light { color: var(--green); }
+    .maybe, .moderate { color: var(--amber); }
+    .no-go, .strong { color: var(--red); }
+    .neutral { color: var(--blue); }
+
+    .overall {
+      padding: 18px;
+      margin: 18px 0;
+      border-radius: 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 940px;
+      border-collapse: collapse;
+      background: var(--panel);
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+    th { background: var(--panel2); }
+    tr:last-child td { border-bottom: none; }
+
+    .error { color: var(--red); }
+
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>Southern Skies Weather Checker</h1>
+    <p class="intro">
+      Takapoto Estate forecast data supplied by Open-Meteo.
+    </p>
+
+    <section class="controls">
+      <label>
+        Assessment start
+        <select id="startHour">
+          <option value="17">5:00 pm</option>
+          <option value="18">6:00 pm</option>
+          <option value="19" selected>7:00 pm</option>
+          <option value="20">8:00 pm</option>
+          <option value="21">9:00 pm</option>
+        </select>
+      </label>
+
+      <label>
+        Assessment end
+        <select id="endHour">
+          <option value="20">8:00 pm</option>
+          <option value="21">9:00 pm</option>
+          <option value="22" selected>10:00 pm</option>
+          <option value="23">11:00 pm</option>
+        </select>
+      </label>
+
+      <button id="refreshButton">Refresh forecast</button>
+    </section>
+
+    <p id="status" class="status">Loading forecast…</p>
+
+    <section id="results" hidden>
+      <div class="overall">
+        <span class="label">Overall guide</span>
+        <span id="overallResult" class="value">—</span>
+        <span id="overallReason" class="detail"></span>
+      </div>
+
+      <div class="summary">
+        <div class="card">
+          <span class="label">Average total cloud</span>
+          <span id="totalCloud" class="value">—</span>
+          <span id="cloudRating" class="detail"></span>
+        </div>
+
+        <div class="card">
+          <span class="label">Average low cloud</span>
+          <span id="lowCloud" class="value">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Average mid cloud</span>
+          <span id="midCloud" class="value">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Average high cloud</span>
+          <span id="highCloud" class="value">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Maximum sustained wind</span>
+          <span id="windSpeed" class="value">—</span>
+          <span id="windRating" class="detail"></span>
+        </div>
+
+        <div class="card">
+          <span class="label">Maximum wind gust</span>
+          <span id="windGust" class="value neutral">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Minimum visibility</span>
+          <span id="visibility" class="value neutral">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Average temperature</span>
+          <span id="temperature" class="value neutral">—</span>
+        </div>
+
+        <div class="card">
+          <span class="label">Average dew point</span>
+          <span id="dewPoint" class="value neutral">—</span>
+        </div>
+      </div>
+
+      <h2>Hourly forecast</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Temp</th>
+              <th>Dew point</th>
+              <th>Total cloud</th>
+              <th>Low</th>
+              <th>Mid</th>
+              <th>High</th>
+              <th>Visibility</th>
+              <th>Wind</th>
+              <th>Gust</th>
+            </tr>
+          </thead>
+          <tbody id="forecastTable"></tbody>
+        </table>
+      </div>
+
+      <p class="small">
+        Cloud guide: 0–20% Definite, over 20–40% Maybe, over 40% No-go.
+        Sustained wind guide: 0–5 km/h Calm, over 5–10 Light,
+        over 10–20 Moderate, over 20 Strong.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const apiUrl =
+      "https://api.open-meteo.com/v1/forecast?latitude=-37.98642&longitude=175.65366&hourly=temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,wind_gusts_10m,wind_speed_10m,dew_point_2m&timezone=auto&forecast_days=1";
+
+    const startHourSelect = document.getElementById("startHour");
+    const endHourSelect = document.getElementById("endHour");
+    const refreshButton = document.getElementById("refreshButton");
+    const statusElement = document.getElementById("status");
+    const resultsElement = document.getElementById("results");
+
+    let latestData = null;
+
+    refreshButton.addEventListener("click", loadWeather);
+    startHourSelect.addEventListener("change", renderWeather);
+    endHourSelect.addEventListener("change", renderWeather);
+
+    function average(values) {
+      const valid = values.filter(Number.isFinite);
+      if (!valid.length) return null;
+      return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+    }
+
+    function maximum(values) {
+      const valid = values.filter(Number.isFinite);
+      return valid.length ? Math.max(...valid) : null;
+    }
+
+    function minimum(values) {
+      const valid = values.filter(Number.isFinite);
+      return valid.length ? Math.min(...valid) : null;
+    }
+
+    function cloudAssessment(value) {
+      if (value <= 20) return { label: "Definite", className: "definite" };
+      if (value <= 40) return { label: "Maybe", className: "maybe" };
+      return { label: "No-go", className: "no-go" };
+    }
+
+    function windAssessment(value) {
+      if (value <= 5) return { label: "Calm", className: "calm" };
+      if (value <= 10) return { label: "Light", className: "light" };
+      if (value <= 20) return { label: "Moderate", className: "moderate" };
+      return { label: "Strong", className: "strong" };
+    }
+
+    function numberAt(array, index) {
+      if (!array || array[index] === null || array[index] === undefined) {
+        return null;
+      }
+      return Number(array[index]);
+    }
+
+    function formatNumber(value, digits = 0) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "—";
+    }
+
+    async function loadWeather() {
+      statusElement.textContent = "Loading forecast…";
+      statusElement.className = "status";
+      resultsElement.hidden = true;
+
+      try {
+        const response = await fetch(apiUrl, { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error(`Open-Meteo returned error ${response.status}`);
+        }
+
+        latestData = await response.json();
+        renderWeather();
+      } catch (error) {
+        console.error(error);
+        statusElement.textContent = `Weather could not be loaded: ${error.message}`;
+        statusElement.className = "status error";
+      }
+    }
+
+    function renderWeather() {
+      if (!latestData) return;
+
+      const startHour = Number(startHourSelect.value);
+      const endHour = Number(endHourSelect.value);
+
+      if (endHour < startHour) {
+        statusElement.textContent = "The end time must be after the start time.";
+        statusElement.className = "status error";
+        resultsElement.hidden = true;
+        return;
+      }
+
+      const hourly = latestData.hourly;
+      const rows = hourly.time.map((time, index) => {
+        const hour = Number(time.slice(11, 13));
+
+        return {
+          hour,
+          time,
+          temperature: numberAt(hourly.temperature_2m, index),
+          dewPoint: numberAt(hourly.dew_point_2m, index),
+          cloud: numberAt(hourly.cloud_cover, index),
+          lowCloud: numberAt(hourly.cloud_cover_low, index),
+          midCloud: numberAt(hourly.cloud_cover_mid, index),
+          highCloud: numberAt(hourly.cloud_cover_high, index),
+          visibility: numberAt(hourly.visibility, index),
+          wind: numberAt(hourly.wind_speed_10m, index),
+          gust: numberAt(hourly.wind_gusts_10m, index)
+        };
+      }).filter(row => row.hour >= startHour && row.hour <= endHour);
+
+      if (!rows.length) {
+        statusElement.textContent = "No forecast hours matched the selected window.";
+        statusElement.className = "status error";
+        resultsElement.hidden = true;
+        return;
+      }
+
+      const avgCloud = average(rows.map(row => row.cloud));
+      const avgLowCloud = average(rows.map(row => row.lowCloud));
+      const avgMidCloud = average(rows.map(row => row.midCloud));
+      const avgHighCloud = average(rows.map(row => row.highCloud));
+      const maxWind = maximum(rows.map(row => row.wind));
+      const maxGust = maximum(rows.map(row => row.gust));
+      const minVisibility = minimum(rows.map(row => row.visibility));
+      const avgTemperature = average(rows.map(row => row.temperature));
+      const avgDewPoint = average(rows.map(row => row.dewPoint));
+
+      const cloud = cloudAssessment(avgCloud);
+      const wind = windAssessment(maxWind);
+
+      setValue("totalCloud", `${formatNumber(avgCloud)}%`, cloud.className);
+      document.getElementById("cloudRating").textContent = cloud.label;
+      document.getElementById("cloudRating").className = `detail ${cloud.className}`;
+
+      setValue("lowCloud", `${formatNumber(avgLowCloud)}%`);
+      setValue("midCloud", `${formatNumber(avgMidCloud)}%`);
+      setValue("highCloud", `${formatNumber(avgHighCloud)}%`);
+
+      setValue("windSpeed", `${formatNumber(maxWind)} km/h`, wind.className);
+      document.getElementById("windRating").textContent = wind.label;
+      document.getElementById("windRating").className = `detail ${wind.className}`;
+
+      setValue("windGust", `${formatNumber(maxGust)} km/h`, "neutral");
+      setValue("visibility", `${formatNumber(minVisibility / 1000, 1)} km`, "neutral");
+      setValue("temperature", `${formatNumber(avgTemperature, 1)}°C`, "neutral");
+      setValue("dewPoint", `${formatNumber(avgDewPoint, 1)}°C`, "neutral");
+
+      const overall = getOverallAssessment(cloud, wind);
+      setValue("overallResult", overall.label, overall.className);
+      document.getElementById("overallReason").textContent = overall.reason;
+
+      buildTable(rows);
+
+      statusElement.textContent =
+        `Forecast updated ${new Date().toLocaleString("en-NZ")}`;
+      statusElement.className = "status";
+      resultsElement.hidden = false;
+    }
+
+    function getOverallAssessment(cloud, wind) {
+      if (cloud.label === "No-go" || wind.label === "Strong") {
+        return {
+          label: "NO-GO",
+          className: "no-go",
+          reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+        };
+      }
+
+      if (cloud.label === "Maybe" || wind.label === "Moderate") {
+        return {
+          label: "MAYBE",
+          className: "maybe",
+          reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+        };
+      }
+
+      return {
+        label: "DEFINITE",
+        className: "definite",
+        reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+      };
+    }
+
+    function setValue(id, text, className = "") {
+      const element = document.getElementById(id);
+      element.textContent = text;
+      element.className = `value ${className}`.trim();
+    }
+
+    function buildTable(rows) {
+      const tableBody = document.getElementById("forecastTable");
+      tableBody.innerHTML = "";
+
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        const displayTime = new Date(row.time).toLocaleTimeString("en-NZ", {
+          hour: "numeric",
+          minute: "2-digit"
+        });
+
+        tr.innerHTML = `
+          <td>${displayTime}</td>
+          <td>${formatNumber(row.temperature, 1)}°C</td>
+          <td>${formatNumber(row.dewPoint, 1)}°C</td>
+          <td>${formatNumber(row.cloud)}%</td>
+          <td>${formatNumber(row.lowCloud)}%</td>
+          <td>${formatNumber(row.midCloud)}%</td>
+          <td>${formatNumber(row.highCloud)}%</td>
+          <td>${formatNumber(row.visibility / 1000, 1)} km</td>
+          <td>${formatNumber(row.wind)} km/h</td>
+          <td>${formatNumber(row.gust)} km/h</td>
+        `;
+
+        tableBody.appendChild(tr);
+      });
+    }
+
+    loadWeather();
+  </script>
+</body>
+</html>
