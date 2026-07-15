@@ -1,475 +1,688 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Southern Skies Weather Operations Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Southern Skies Operations Dashboard v2</title>
 
   <style>
     :root {
-      --bg:#07111f;
-      --panel:#10233a;
-      --panel2:#162d49;
-      --text:#f4f7fb;
-      --muted:#afbed1;
-      --border:#304761;
-      --green:#57dc98;
-      --amber:#ffd166;
-      --red:#ff7777;
-      --blue:#72b7ff;
+      --bg: #07111f;
+      --panel: #0f2238;
+      --panel-2: #162d49;
+      --text: #f4f7fb;
+      --muted: #aebdd0;
+      --border: #304761;
+      --green: #59d99b;
+      --amber: #ffd166;
+      --red: #ff7777;
+      --blue: #72b7ff;
     }
 
-    * { box-sizing:border-box; }
+    * { box-sizing: border-box; }
 
     body {
-      margin:0;
-      padding:20px;
-      font-family:Arial, Helvetica, sans-serif;
-      background:var(--bg);
-      color:var(--text);
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
     }
 
-    .container {
-      max-width:1280px;
-      margin:0 auto;
+    .app {
+      width: min(1400px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 20px 0 40px;
     }
 
-    h1 { margin-bottom:6px; }
-    h2 { margin:0 0 8px; }
-    h3 { margin:0 0 6px; }
+    h1, h2, h3, p { margin-top: 0; }
 
-    .intro,
-    .status,
-    .small {
-      color:var(--muted);
+    .muted { color: var(--muted); }
+    .good { color: var(--green); }
+    .warn { color: var(--amber); }
+    .bad { color: var(--red); }
+    .info { color: var(--blue); }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 18px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero-card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
     }
 
     .controls {
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      align-items:end;
-      margin:22px 0;
-      padding:16px;
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
     }
 
     label {
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      color:var(--muted);
-      font-size:14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
     }
 
-    select,
-    button {
-      min-height:42px;
-      padding:9px 12px;
-      border-radius:8px;
-      border:1px solid var(--border);
-      font-size:15px;
+    select, button {
+      min-height: 42px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      padding: 9px 12px;
     }
 
     select {
-      background:#0b192b;
-      color:var(--text);
+      background: #0b192b;
+      color: var(--text);
     }
 
     button {
-      border:none;
-      background:#3478c9;
-      color:white;
-      cursor:pointer;
-      font-weight:700;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
     }
 
-    button:hover { background:#448bdd; }
+    .btn-refresh { background: #3478c9; }
 
-    .overall,
-    .dashboard-panel {
-      margin-top:18px;
-      padding:18px;
-      background:var(--panel2);
-      border:1px solid var(--border);
-      border-radius:12px;
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      min-height: 20px;
     }
 
-    .summary {
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(175px, 1fr));
-      gap:12px;
-      margin:18px 0;
+    .decision {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      margin: 8px 0 10px;
     }
 
-    .card {
-      padding:16px;
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:12px;
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
     }
 
-    .label {
-      display:block;
-      margin-bottom:8px;
-      color:var(--muted);
-      font-size:13px;
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
     }
 
-    .value {
-      display:block;
-      font-size:24px;
-      font-weight:700;
+    .metric-label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 7px;
     }
 
-    .detail {
-      display:block;
-      margin-top:6px;
-      color:var(--muted);
-      font-size:13px;
+    .metric-value {
+      display: block;
+      font-size: 23px;
+      font-weight: 800;
     }
 
-    .definite,
-    .high,
-    .calm,
-    .light { color:var(--green); }
-
-    .maybe,
-    .medium,
-    .moderate { color:var(--amber); }
-
-    .no-go,
-    .low,
-    .strong,
-    .error { color:var(--red); }
-
-    .neutral { color:var(--blue); }
+    .metric-detail {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
+    }
 
     .table-wrap {
-      overflow-x:auto;
-      border:1px solid var(--border);
-      border-radius:12px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
     }
 
     table {
-      width:100%;
-      min-width:860px;
-      border-collapse:collapse;
-      background:var(--panel);
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      background: var(--panel);
     }
 
-    th,
-    td {
-      padding:10px;
-      border-bottom:1px solid var(--border);
-      text-align:right;
-      white-space:nowrap;
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
     }
 
-    th:first-child,
-    td:first-child { text-align:left; }
-
-    th { background:var(--panel2); }
-    tr:last-child td { border-bottom:none; }
+    th:first-child, td:first-child { text-align: left; }
+    th { background: var(--panel-2); }
+    tr:last-child td { border-bottom: 0; }
 
     .model-grid {
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:16px;
-      margin-top:16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
     }
 
-    .model-panel {
-      min-width:0;
-      padding:16px;
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:12px;
+    .model-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      min-width: 0;
     }
 
     .windy-grid {
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
     }
 
-    .windy-card { min-width:0; }
+    .windy-card { min-width: 0; }
 
     .windy-frame {
-      display:block;
-      width:100%;
-      height:600px;
-      border:0;
-      border-radius:10px;
-      background:var(--panel);
+      width: 100%;
+      height: 560px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--panel);
+      display: block;
     }
 
     .windy-link {
-      display:inline-block;
-      margin-top:12px;
-      color:var(--blue);
-      text-decoration:none;
+      display: inline-block;
+      margin-top: 10px;
+      color: var(--blue);
+      text-decoration: none;
     }
 
-    .windy-link:hover { text-decoration:underline; }
+    .windy-link:hover { text-decoration: underline; }
 
-    @media (max-width:800px) {
-      body { padding:12px; }
-      h1 { font-size:26px; }
-      .model-grid,
-      .windy-grid { grid-template-columns:1fr; }
-      .windy-frame { height:500px; }
+    .notice {
+      border-left: 4px solid var(--amber);
+      padding-left: 12px;
+      color: var(--muted);
+    }
+
+
+    @media (max-width: 900px) {
+      .hero, .model-grid, .windy-grid { grid-template-columns: 1fr; }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: stretch;
+      }
+      .controls label, .controls .metric, .controls button { width: 100%; }
+      .controls button { min-height: 48px; }
+      .decision { font-size: 34px; }
+      .windy-frame { height: 460px; }
+    }
+
+    @media (max-width: 640px) {
+      .app { width: min(100% - 12px, 1400px); padding-top: 10px; }
+      h1 { font-size: 26px; line-height: 1.15; }
+      h2 { font-size: 21px; }
+      h3 { font-size: 18px; }
+      .panel, .hero-card, .model-card { padding: 14px; border-radius: 12px; }
+      .controls { grid-template-columns: 1fr; gap: 10px; }
+      select, button { width: 100%; min-height: 48px; font-size: 16px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .metric { padding: 12px; }
+      .metric-value { font-size: 21px; }
+      .decision { font-size: 32px; }
+      .table-wrap {
+        margin-left: -2px;
+        margin-right: -2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      table { min-width: 760px; font-size: 13px; }
+      th, td { padding: 8px; }
+      .windy-frame { height: 390px; }
+      .windy-link { display: block; padding: 10px 0; }
+      #recommendationText { font-size: 16px !important; }
+    }
+
+    @media (max-width: 420px) {
+      .metrics { grid-template-columns: 1fr; }
+      .decision { font-size: 29px; }
+      .metric-value { font-size: 20px; }
+      .windy-frame { height: 340px; }
     }
   </style>
 </head>
 
 <body>
-  <main class="container">
-    <h1>Southern Skies Weather Operations Dashboard</h1>
+  <main class="app">
+    <header>
+      <h1>Southern Skies Operations Dashboard v2</h1>
+      <p class="muted">
+        Multi-site forecast comparison, confidence scoring, and Windy visual checks
+        for Southern Skies Experience.
+      </p>
+    </header>
 
-    <p class="intro">
-      Takapoto Estate forecast comparison using Open-Meteo Best Match,
-      ECMWF, GFS and JMA, plus Windy satellite and cloud forecast views.
-    </p>
+    <section class="panel">
+      <div class="controls">
+        <label>
+          Location
+          <select id="locationSelect">
+            <option value="waikato" selected>Waikato — Takapoto Estate</option>
+            <option value="kaikoura">Kaikōura</option>
+          </select>
+        </label>
 
-    <section class="controls">
-      <label>
-        Forecast day
-        <select id="forecastDay">
-          <option value="0" selected>Today</option>
-          <option value="1">Tomorrow</option>
-          <option value="2">Day after tomorrow</option>
-        </select>
-      </label>
+        <label>
+          Forecast day
+          <select id="forecastDay">
+            <option value="0" selected>Today</option>
+            <option value="1">Tomorrow</option>
+            <option value="2">Day after tomorrow</option>
+          </select>
+        </label>
 
-      <label>
-        Assessment start
-        <select id="startHour">
-          <option value="17">5:00 pm</option>
-          <option value="18">6:00 pm</option>
-          <option value="19" selected>7:00 pm</option>
-          <option value="20">8:00 pm</option>
-          <option value="21">9:00 pm</option>
-        </select>
-      </label>
+        <div class="metric" style="min-width:220px;">
+          <span class="metric-label">Automatic tour start</span>
+          <span id="automaticTourStart" class="metric-value info">—</span>
+        </div>
 
-      <label>
-        Assessment end
-        <select id="endHour">
-          <option value="20">8:00 pm</option>
-          <option value="21">9:00 pm</option>
-          <option value="22" selected>10:00 pm</option>
-          <option value="23">11:00 pm</option>
-        </select>
-      </label>
+        <div class="metric" style="min-width:240px;">
+          <span class="metric-label">Automatic assessment window</span>
+          <span id="automaticWindow" class="metric-value info">—</span>
+        </div>
 
-      <button id="refreshButton">Refresh all models</button>
-    </section>
-
-    <p id="status" class="status">Loading forecasts…</p>
-
-    <section id="results" hidden>
-      <div class="overall">
-        <span class="label">Operational guide — Best Match</span>
-        <span id="overallResult" class="value">—</span>
-        <span id="overallReason" class="detail"></span>
+        <button id="refreshButton" class="btn-refresh" aria-label="Refresh all weather models">Refresh all models</button>
       </div>
 
-      <div class="summary">
-        <div class="card">
-          <span class="label">Forecast confidence</span>
-          <span id="confidenceValue" class="value">—</span>
-          <span id="confidenceReason" class="detail"></span>
-        </div>
+      <div id="status" class="status">Loading forecasts…</div>
+    </section>
 
-        <div class="card">
-          <span class="label">Best Match average cloud</span>
-          <span id="bestCloud" class="value">—</span>
-          <span id="bestCloudRating" class="detail"></span>
-        </div>
+    <section class="hero">
+      <div class="hero-card">
+        <span class="muted">Operational guide — Best Match</span>
+        <div id="decision" class="decision info">—</div>
+        <div id="decisionReason" class="muted">Waiting for forecast data.</div>
 
-        <div class="card">
-          <span class="label">Best Match maximum wind</span>
-          <span id="bestWind" class="value">—</span>
-          <span id="bestWindRating" class="detail"></span>
-        </div>
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">Best Match cloud</span>
+            <span id="bestCloud" class="metric-value">—</span>
+            <span id="bestCloudLabel" class="metric-detail"></span>
+          </div>
 
-        <div class="card">
-          <span class="label">Model cloud spread</span>
-          <span id="cloudSpread" class="value neutral">—</span>
-          <span class="detail">ECMWF, GFS and JMA only</span>
-        </div>
+          <div class="metric">
+            <span class="metric-label">Best Match wind</span>
+            <span id="bestWind" class="metric-value">—</span>
+            <span id="bestWindLabel" class="metric-detail"></span>
+          </div>
 
-        <div class="card">
-          <span class="label">Models available</span>
-          <span id="modelsAvailable" class="value neutral">—</span>
+          <div class="metric">
+            <span class="metric-label">Best Match gust</span>
+            <span id="bestGust" class="metric-value info">—</span>
+          </div>
+
+          <div class="metric">
+            <span class="metric-label">Best Match visibility</span>
+            <span id="bestVisibility" class="metric-value info">—</span>
+          </div>
         </div>
       </div>
 
-      <section class="dashboard-panel">
-        <h2>Forecast model comparison</h2>
-        <p class="intro">
-          Best Match is the operational forecast. Confidence is calculated
-          from agreement between ECMWF, GFS and JMA.
-        </p>
+      <div class="hero-card">
+        <span class="muted">Forecast confidence</span>
+        <div id="confidence" class="decision info">—</div>
+        <div id="confidenceReason" class="muted">Waiting for independent models.</div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Model</th>
-                <th>Avg total cloud</th>
-                <th>Avg low cloud</th>
-                <th>Avg mid cloud</th>
-                <th>Avg high cloud</th>
-                <th>Max wind</th>
-                <th>Max gust</th>
-                <th>Min visibility</th>
-                <th>Assessment</th>
-              </tr>
-            </thead>
-            <tbody id="comparisonTable"></tbody>
-          </table>
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">Cloud spread</span>
+            <span id="cloudSpread" class="metric-value info">—</span>
+            <span class="metric-detail">ECMWF, GFS and ICON</span>
+          </div>
+
+          <div class="metric">
+            <span class="metric-label">Models available</span>
+            <span id="modelsAvailable" class="metric-value info">—</span>
+          </div>
+
+          <div class="metric">
+            <span class="metric-label">Night Sky Quality Score</span>
+            <span id="skyScore" class="metric-value info">—</span>
+            <span id="skyScoreLabel" class="metric-detail"></span>
+          </div>
+
+          <div class="metric">
+            <span class="metric-label">Lens fog risk</span>
+            <span id="fogRisk" class="metric-value info">—</span>
+            <span id="fogRiskDetail" class="metric-detail"></span>
+          </div>
         </div>
-      </section>
-
-      <section class="dashboard-panel">
-        <h2>Hourly model details</h2>
-
-        <div class="model-grid">
-          <article class="model-panel">
-            <h3>Best Match</h3>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
-                    <th>High</th><th>Wind</th><th>Gust</th>
-                  </tr>
-                </thead>
-                <tbody id="bestTable"></tbody>
-              </table>
-            </div>
-          </article>
-
-          <article class="model-panel">
-            <h3>ECMWF</h3>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
-                    <th>High</th><th>Wind</th><th>Gust</th>
-                  </tr>
-                </thead>
-                <tbody id="ecmwfTable"></tbody>
-              </table>
-            </div>
-          </article>
-
-          <article class="model-panel">
-            <h3>GFS</h3>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
-                    <th>High</th><th>Wind</th><th>Gust</th>
-                  </tr>
-                </thead>
-                <tbody id="gfsTable"></tbody>
-              </table>
-            </div>
-          </article>
-
-          <article class="model-panel">
-            <h3>JMA</h3>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
-                    <th>High</th><th>Wind</th><th>Gust</th>
-                  </tr>
-                </thead>
-                <tbody id="jmaTable"></tbody>
-              </table>
-            </div>
-          </article>
-        </div>
-
-        <p class="small">
-          Some model endpoints may not provide every field. Missing gust or
-          visibility values are shown as “—” and do not stop the comparison.
-        </p>
-      </section>
+      </div>
     </section>
 
-    <section class="dashboard-panel">
-      <h2>Windy visual weather checks</h2>
-      <p class="intro">
-        Compare current satellite imagery with the modelled cloud forecast.
-        In the cloud forecast panel, move the timeline to 7:00 pm.
+
+    <section class="panel">
+      <h2>Tonight’s recommendation</h2>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-label">Overall night score</span>
+          <span id="recommendationOverallScore" class="metric-value info">—</span>
+          <span id="recommendationOverallLabel" class="metric-detail"></span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">Best hour</span>
+          <span id="recommendationBestHour" class="metric-value info">—</span>
+          <span class="metric-detail">Highest-scoring forecast hour</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">Peak score</span>
+          <span id="recommendationPeakScore" class="metric-value info">—</span>
+          <span id="recommendationPeakLabel" class="metric-detail"></span>
+        </div>
+
+        <div class="metric">
+          <span class="metric-label">Fog risk</span>
+          <span id="recommendationFogRisk" class="metric-value info">—</span>
+          <span id="recommendationFogDetail" class="metric-detail"></span>
+        </div>
+      </div>
+
+      <p id="recommendationText" class="muted" style="font-size:18px; line-height:1.5; margin-top:16px;">
+        Waiting for forecast data.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Forecast model comparison</h2>
+      <p class="muted">
+        Best Match is the operational forecast. Confidence is calculated from
+        ECMWF, GFS and ICON Global where available.
+      </p>
+
+      <p class="notice">
+        ICON Global is supplied through Open-Meteo’s DWD ICON endpoint.
+        It provides an independent global comparison alongside ECMWF and GFS.
+      </p>
+
+      <p class="small" style="margin-bottom:8px;">On mobile, swipe sideways to view the full table.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Avg cloud</th>
+              <th>Low</th>
+              <th>Mid</th>
+              <th>High</th>
+              <th>Max wind</th>
+              <th>Max gust</th>
+              <th>Min visibility</th>
+              <th>Assessment</th>
+            </tr>
+          </thead>
+          <tbody id="comparisonBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Hourly model details</h2>
+
+      <div class="model-grid">
+        <article class="model-card">
+          <h3>Best Match</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
+                  <th>High</th><th>Wind</th><th>Gust</th><th>Score</th><th>Rating</th>
+                </tr>
+              </thead>
+              <tbody id="bestTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="model-card">
+          <h3>ECMWF</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
+                  <th>High</th><th>Wind</th><th>Gust</th><th>Score</th><th>Rating</th>
+                </tr>
+              </thead>
+              <tbody id="ecmwfTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="model-card">
+          <h3>GFS</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
+                  <th>High</th><th>Wind</th><th>Gust</th><th>Score</th><th>Rating</th>
+                </tr>
+              </thead>
+              <tbody id="gfsTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="model-card">
+          <h3>ICON Global</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th><th>Cloud</th><th>Low</th><th>Mid</th>
+                  <th>High</th><th>Wind</th><th>Gust</th><th>Score</th><th>Rating</th>
+                </tr>
+              </thead>
+              <tbody id="iconTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Windy visual checks</h2>
+      <p class="muted">
+        Compare observed satellite imagery with the modelled cloud forecast.
+        Use Windy’s timeline to select the relevant evening time.
       </p>
 
       <div class="windy-grid">
-        <div class="windy-card">
-          <h3>Live satellite imagery</h3>
-          <p class="small">
-            Current observed cloud and movement around Takapoto Estate.
-          </p>
+        <article class="windy-card">
+          <h3 id="satelliteHeading">Live satellite imagery</h3>
+          
 
           <iframe
+            id="windySatelliteFrame"
             class="windy-frame"
-            title="Windy satellite map centred on Takapoto Estate"
+            title="Windy satellite map centred on the selected site"
             src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=7&overlay=satellite&product=satellite&level=surface&lat=-37.98642&lon=175.65366&detailLat=-37.98642&detailLon=175.65366&marker=true&message=true"
             loading="lazy"
             allowfullscreen>
           </iframe>
 
           <a
+            id="windySatelliteLink"
             class="windy-link"
             href="https://www.windy.com/-Satellite-satellite?satellite,-37.986,175.654,7"
             target="_blank"
             rel="noopener noreferrer">
             Open full satellite map
           </a>
-        </div>
+        </article>
 
-        <div class="windy-card">
-          <h3>Cloud forecast — select 7:00 pm</h3>
-          <p class="small">
-            ECMWF modelled cloud forecast. Use the Windy timeline to select
-            the appropriate evening time.
-          </p>
+        <article class="windy-card">
+          <h3 id="cloudHeading">Cloud forecast</h3>
+          <p class="muted">ECMWF modelled cloud. Select 7:00 pm on the timeline.</p>
 
           <iframe
+            id="windyCloudFrame"
             class="windy-frame"
-            title="Windy cloud forecast centred on Takapoto Estate"
+            title="Windy cloud forecast centred on the selected site"
             src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=7&overlay=clouds&product=ecmwf&level=surface&lat=-37.98642&lon=175.65366&detailLat=-37.98642&detailLon=175.65366&marker=true&message=true&calendar=now"
             loading="lazy"
             allowfullscreen>
           </iframe>
 
           <a
+            id="windyCloudLink"
             class="windy-link"
             href="https://www.windy.com/-Clouds-clouds?clouds,-37.986,175.654,7"
             target="_blank"
             rel="noopener noreferrer">
             Open full cloud forecast
           </a>
-        </div>
+        </article>
       </div>
     </section>
   </main>
 
   <script>
-    const LATITUDE = -37.98642;
-    const LONGITUDE = 175.65366;
+    const LOCATIONS = {
+      waikato: {
+        name: "Waikato — Takapoto Estate",
+        latitude: -37.98642,
+        longitude: 175.65366
+      },
+      kaikoura: {
+        name: "Kaikōura",
+        latitude: -42.31550,
+        longitude: 173.69366
+      }
+    };
 
-    const COMMON_FIELDS = [
+    function currentLocation() {
+      return LOCATIONS[el("locationSelect").value];
+    }
+
+
+    /*
+      Seasonal tour-start schedules.
+
+      Waikato uses the exact start times supplied.
+
+      Kaikōura is provisionally set 30 minutes later than Waikato through
+      the brighter part of spring and summer, while retaining the same
+      7:00 pm winter start. These values can be edited later when the
+      final Kaikōura operating schedule is confirmed.
+    */
+    const TOUR_SCHEDULES = {
+      waikato: [
+        { start: "12-01", end: "01-31", tourStart: 22.0 },
+        { start: "02-01", end: "02-29", tourStart: 21.5 },
+        { start: "03-01", end: "03-15", tourStart: 21.0 },
+        { start: "03-16", end: "04-04", tourStart: 20.5 },
+        { start: "04-05", end: "09-14", tourStart: 19.0 },
+        { start: "09-15", end: "10-15", tourStart: 20.5 },
+        { start: "10-16", end: "10-31", tourStart: 21.0 },
+        { start: "11-01", end: "11-30", tourStart: 21.5 }
+      ],
+      kaikoura: [
+        { start: "12-01", end: "01-31", tourStart: 22.5 },
+        { start: "02-01", end: "02-29", tourStart: 22.0 },
+        { start: "03-01", end: "03-15", tourStart: 21.5 },
+        { start: "03-16", end: "04-04", tourStart: 21.0 },
+        { start: "04-05", end: "09-14", tourStart: 19.0 },
+        { start: "09-15", end: "10-15", tourStart: 21.0 },
+        { start: "10-16", end: "10-31", tourStart: 21.5 },
+        { start: "11-01", end: "11-30", tourStart: 22.0 }
+      ]
+    };
+
+    function monthDay(date) {
+      return [
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    function isMonthDayInRange(value, start, end) {
+      if (start <= end) {
+        return value >= start && value <= end;
+      }
+
+      // Handles date ranges that cross New Year.
+      return value >= start || value <= end;
+    }
+
+    function selectedForecastDate() {
+      const offset = Number(el("forecastDay").value);
+      const nowNz = new Date(
+        new Date().toLocaleString("en-US", {
+          timeZone: "Pacific/Auckland"
+        })
+      );
+
+      nowNz.setHours(0, 0, 0, 0);
+      nowNz.setDate(nowNz.getDate() + offset);
+      return nowNz;
+    }
+
+    function automaticSchedule() {
+      const locationKey = el("locationSelect").value;
+      const date = selectedForecastDate();
+      const md = monthDay(date);
+      const schedule = TOUR_SCHEDULES[locationKey];
+
+      const match = schedule.find(period =>
+        isMonthDayInRange(md, period.start, period.end)
+      ) || schedule[0];
+
+      return {
+        tourStart: match.tourStart,
+        assessmentStart: Math.floor(match.tourStart),
+        assessmentEnd: Math.floor(match.tourStart) + 3
+      };
+    }
+
+    function formatDecimalHour(hour) {
+      const normalized = ((hour % 24) + 24) % 24;
+      const wholeHour = Math.floor(normalized);
+      const minutes = normalized % 1 === 0.5 ? "30" : "00";
+      const suffix = wholeHour >= 12 ? "pm" : "am";
+      const displayHour = wholeHour % 12 || 12;
+      return `${displayHour}:${minutes} ${suffix}`;
+    }
+
+    function updateAutomaticWindowDisplay() {
+      const schedule = automaticSchedule();
+
+      el("automaticTourStart").textContent =
+        formatDecimalHour(schedule.tourStart);
+
+      el("automaticWindow").textContent =
+        `${formatDecimalHour(schedule.assessmentStart)}–` +
+        `${formatDecimalHour(schedule.assessmentEnd)}`;
+    }
+
+    const HOURLY_FIELDS = [
       "temperature_2m",
       "dew_point_2m",
       "cloud_cover",
@@ -481,69 +694,130 @@
       "wind_gusts_10m"
     ].join(",");
 
-    function makeUrl(endpoint) {
+    const MODEL_CONFIG = {
+      best: {
+        name: "Best Match",
+        endpoint: "/v1/forecast"
+      },
+      ecmwf: {
+        name: "ECMWF",
+        endpoint: "/v1/ecmwf"
+      },
+      gfs: {
+        name: "GFS",
+        endpoint: "/v1/gfs"
+      },
+      icon: {
+        name: "ICON Global",
+        endpoint: "/v1/dwd-icon"
+      }
+    };
+
+    const state = {
+      rows: {
+        best: [],
+        ecmwf: [],
+        gfs: [],
+        icon: []
+      },
+      summaries: {}
+    };
+
+    const el = id => document.getElementById(id);
+
+    el("refreshButton").addEventListener("click", loadAllModels);
+    el("locationSelect").addEventListener("change", handleLocationChange);
+    el("forecastDay").addEventListener("change", () => {
+      updateAutomaticWindowDisplay();
+      render();
+    });
+
+    function updateWindyMaps() {
+      const location = currentLocation();
+      const lat = location.latitude;
+      const lon = location.longitude;
+
+      const satelliteSrc =
+        "https://embed.windy.com/embed.html" +
+        "?type=map" +
+        "&location=coordinates" +
+        "&metricRain=mm" +
+        "&metricTemp=%C2%B0C" +
+        "&metricWind=km%2Fh" +
+        "&zoom=7" +
+        "&overlay=satellite" +
+        "&product=satellite" +
+        "&level=surface" +
+        `&lat=${lat}` +
+        `&lon=${lon}` +
+        `&detailLat=${lat}` +
+        `&detailLon=${lon}` +
+        "&marker=true" +
+        "&message=true";
+
+      const cloudSrc =
+        "https://embed.windy.com/embed.html" +
+        "?type=map" +
+        "&location=coordinates" +
+        "&metricRain=mm" +
+        "&metricTemp=%C2%B0C" +
+        "&metricWind=km%2Fh" +
+        "&zoom=7" +
+        "&overlay=clouds" +
+        "&product=ecmwf" +
+        "&level=surface" +
+        `&lat=${lat}` +
+        `&lon=${lon}` +
+        `&detailLat=${lat}` +
+        `&detailLon=${lon}` +
+        "&marker=true" +
+        "&message=true" +
+        "&calendar=now";
+
+      el("satelliteHeading").textContent =
+        `Live satellite imagery — ${location.name}`;
+
+      el("cloudHeading").textContent =
+        `Cloud forecast — ${location.name}`;
+
+      el("windySatelliteFrame").src = satelliteSrc;
+      el("windyCloudFrame").src = cloudSrc;
+
+      el("windySatelliteLink").href =
+        `https://www.windy.com/-Satellite-satellite?satellite,${lat},${lon},7`;
+
+      el("windyCloudLink").href =
+        `https://www.windy.com/-Clouds-clouds?clouds,${lat},${lon},7`;
+    }
+
+    function handleLocationChange() {
+      updateWindyMaps();
+      updateAutomaticWindowDisplay();
+
+      state.rows = {
+        best: [],
+        ecmwf: [],
+        gfs: [],
+        icon: []
+      };
+
+      state.summaries = {};
+      updateAutomaticWindowDisplay();
+    updateWindyMaps();
+    loadAllModels();
+    }
+
+    function buildUrl(endpoint) {
+      const location = currentLocation();
+
       return (
         `https://api.open-meteo.com${endpoint}` +
-        `?latitude=${LATITUDE}` +
-        `&longitude=${LONGITUDE}` +
-        `&hourly=${COMMON_FIELDS}` +
+        `?latitude=${location.latitude}` +
+        `&longitude=${location.longitude}` +
+        `&hourly=${HOURLY_FIELDS}` +
         `&timezone=Pacific%2FAuckland` +
-        `&forecast_days=3`
+        `&forecast_days=4`
       );
-    }
-
-    const MODEL_URLS = {
-      best: makeUrl("/v1/forecast"),
-      ecmwf: makeUrl("/v1/ecmwf"),
-      gfs: makeUrl("/v1/gfs"),
-      jma: makeUrl("/v1/jma")
-    };
-
-    const MODEL_NAMES = {
-      best: "Best Match",
-      ecmwf: "ECMWF",
-      gfs: "GFS",
-      jma: "JMA"
-    };
-
-    const modelRows = {
-      best: [],
-      ecmwf: [],
-      gfs: [],
-      jma: []
-    };
-
-    const forecastDaySelect = document.getElementById("forecastDay");
-    const startHourSelect = document.getElementById("startHour");
-    const endHourSelect = document.getElementById("endHour");
-    const refreshButton = document.getElementById("refreshButton");
-    const statusElement = document.getElementById("status");
-    const resultsElement = document.getElementById("results");
-
-    refreshButton.addEventListener("click", loadAllModels);
-    forecastDaySelect.addEventListener("change", renderDashboard);
-    startHourSelect.addEventListener("change", renderDashboard);
-    endHourSelect.addEventListener("change", renderDashboard);
-
-    function finite(values) {
-      return values.filter(Number.isFinite);
-    }
-
-    function average(values) {
-      const valid = finite(values);
-      return valid.length
-        ? valid.reduce((sum, value) => sum + value, 0) / valid.length
-        : null;
-    }
-
-    function maximum(values) {
-      const valid = finite(values);
-      return valid.length ? Math.max(...valid) : null;
-    }
-
-    function minimum(values) {
-      const valid = finite(values);
-      return valid.length ? Math.min(...valid) : null;
     }
 
     function numberAt(array, index) {
@@ -555,421 +829,682 @@
       return Number.isFinite(value) ? value : null;
     }
 
-    function formatNumber(value, digits = 0) {
-      return Number.isFinite(value) ? value.toFixed(digits) : "—";
+    function parseHourly(hourly) {
+      return hourly.time.map((time, index) => ({
+        time,
+        date: time.slice(0, 10),
+        hour: Number(time.slice(11, 13)),
+        cloud: numberAt(hourly.cloud_cover, index),
+        lowCloud: numberAt(hourly.cloud_cover_low, index),
+        midCloud: numberAt(hourly.cloud_cover_mid, index),
+        highCloud: numberAt(hourly.cloud_cover_high, index),
+        wind: numberAt(hourly.wind_speed_10m, index),
+        gust: numberAt(hourly.wind_gusts_10m, index),
+        visibility: numberAt(hourly.visibility, index),
+        temperature: numberAt(hourly.temperature_2m, index),
+        dewPoint: numberAt(hourly.dew_point_2m, index)
+      }));
+    }
+
+    async function fetchModel(key) {
+      const config = MODEL_CONFIG[key];
+      const response = await fetch(buildUrl(config.endpoint), {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`${config.name}: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.hourly?.time) {
+        throw new Error(`${config.name}: no hourly data returned`);
+      }
+
+      return parseHourly(data.hourly);
+    }
+
+    async function loadAllModels() {
+      el("status").textContent =
+        `Loading forecasts for ${currentLocation().name}…`;
+
+      const keys = Object.keys(MODEL_CONFIG);
+      const settled = await Promise.allSettled(keys.map(fetchModel));
+      const failed = [];
+
+      settled.forEach((result, index) => {
+        const key = keys[index];
+
+        if (result.status === "fulfilled") {
+          state.rows[key] = result.value;
+        } else {
+          state.rows[key] = [];
+          failed.push(MODEL_CONFIG[key].name);
+          console.error(result.reason);
+        }
+      });
+
+      render();
+
+      const loaded = keys.filter(key => state.rows[key].length).length;
+
+      el("status").textContent = failed.length
+        ? `${currentLocation().name}: loaded ${loaded} of 4 models. Unavailable: ${failed.join(", ")}.`
+        : `${currentLocation().name}: all four models updated ${new Date().toLocaleString("en-NZ")}`;
+    }
+
+    function dateToString(date) {
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    function selectedDateString() {
+      return dateToString(selectedForecastDate());
+    }
+
+    function selectRows(rows) {
+      const targetDateObject = selectedForecastDate();
+      const targetDate = dateToString(targetDateObject);
+      const nextDateObject = new Date(targetDateObject);
+      nextDateObject.setDate(nextDateObject.getDate() + 1);
+      const nextDate = dateToString(nextDateObject);
+
+      const schedule = automaticSchedule();
+      const start = schedule.assessmentStart;
+      const end = schedule.assessmentEnd;
+
+      return rows.filter(row => {
+        if (end < 24) {
+          return (
+            row.date === targetDate &&
+            row.hour >= start &&
+            row.hour <= end
+          );
+        }
+
+        const afterMidnightEnd = end - 24;
+
+        return (
+          (
+            row.date === targetDate &&
+            row.hour >= start
+          ) ||
+          (
+            row.date === nextDate &&
+            row.hour <= afterMidnightEnd
+          )
+        );
+      });
+    }
+
+    function valid(values) {
+      return values.filter(Number.isFinite);
+    }
+
+    function average(values) {
+      const v = valid(values);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    }
+
+    function maximum(values) {
+      const v = valid(values);
+      return v.length ? Math.max(...v) : null;
+    }
+
+    function minimum(values) {
+      const v = valid(values);
+      return v.length ? Math.min(...v) : null;
+    }
+
+    function summarise(rows) {
+      return {
+        cloud: average(rows.map(r => r.cloud)),
+        lowCloud: average(rows.map(r => r.lowCloud)),
+        midCloud: average(rows.map(r => r.midCloud)),
+        highCloud: average(rows.map(r => r.highCloud)),
+        wind: maximum(rows.map(r => r.wind)),
+        gust: maximum(rows.map(r => r.gust)),
+        visibility: minimum(rows.map(r => r.visibility)),
+        temperature: average(rows.map(r => r.temperature)),
+        dewPoint: average(rows.map(r => r.dewPoint))
+      };
     }
 
     function cloudAssessment(value) {
       if (!Number.isFinite(value)) {
-        return { label:"Unknown", className:"neutral", rank:1 };
+        return { label: "Unknown", className: "info", rank: 1 };
       }
 
       if (value <= 20) {
-        return { label:"Definite", className:"definite", rank:0 };
+        return { label: "Definite", className: "good", rank: 0 };
       }
 
       if (value <= 40) {
-        return { label:"Maybe", className:"maybe", rank:1 };
+        return { label: "Maybe", className: "warn", rank: 1 };
       }
 
-      return { label:"No-go", className:"no-go", rank:2 };
+      return { label: "No-go", className: "bad", rank: 2 };
     }
 
     function windAssessment(value) {
       if (!Number.isFinite(value)) {
-        return { label:"Unknown", className:"neutral", rank:1 };
+        return { label: "Unknown", className: "info", rank: 1 };
       }
 
       if (value <= 5) {
-        return { label:"Calm", className:"calm", rank:0 };
+        return { label: "Calm", className: "good", rank: 0 };
       }
 
       if (value <= 10) {
-        return { label:"Light", className:"light", rank:0 };
+        return { label: "Light", className: "good", rank: 0 };
       }
 
       if (value <= 20) {
-        return { label:"Moderate", className:"moderate", rank:1 };
+        return { label: "Moderate", className: "warn", rank: 1 };
       }
 
-      return { label:"Strong", className:"strong", rank:2 };
+      return { label: "Strong", className: "bad", rank: 2 };
     }
 
-    function overallAssessment(summary) {
+    function operationalAssessment(summary) {
       const cloud = cloudAssessment(summary.cloud);
       const wind = windAssessment(summary.wind);
       const rank = Math.max(cloud.rank, wind.rank);
 
       if (rank === 2) {
         return {
-          label:"NO-GO",
-          className:"no-go",
-          reason:`Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+          label: "No-Go",
+          className: "bad",
+          reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
         };
       }
 
       if (rank === 1) {
         return {
-          label:"MAYBE",
-          className:"maybe",
-          reason:`Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+          label: "Maybe",
+          className: "warn",
+          reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
         };
       }
 
       return {
-        label:"DEFINITE",
-        className:"definite",
-        reason:`Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
+        label: "Definite",
+        className: "good",
+        reason: `Cloud: ${cloud.label}. Sustained wind: ${wind.label}.`
       };
     }
 
-    async function fetchModel(key, url) {
-      const response = await fetch(url, { cache:"no-store" });
-
-      if (!response.ok) {
-        throw new Error(`${MODEL_NAMES[key]} returned HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.hourly || !Array.isArray(data.hourly.time)) {
-        throw new Error(`${MODEL_NAMES[key]} did not return hourly data`);
-      }
-
-      return parseHourly(data.hourly);
-    }
-
-    function parseHourly(hourly) {
-      return hourly.time.map((time, index) => ({
-        time,
-        hour:Number(time.slice(11,13)),
-        temperature:numberAt(hourly.temperature_2m, index),
-        dewPoint:numberAt(hourly.dew_point_2m, index),
-        cloud:numberAt(hourly.cloud_cover, index),
-        lowCloud:numberAt(hourly.cloud_cover_low, index),
-        midCloud:numberAt(hourly.cloud_cover_mid, index),
-        highCloud:numberAt(hourly.cloud_cover_high, index),
-        visibility:numberAt(hourly.visibility, index),
-        wind:numberAt(hourly.wind_speed_10m, index),
-        gust:numberAt(hourly.wind_gusts_10m, index)
-      }));
-    }
-
-    async function loadAllModels() {
-      statusElement.textContent = "Loading Best Match, ECMWF, GFS and JMA…";
-      statusElement.className = "status";
-      resultsElement.hidden = true;
-
-      const entries = Object.entries(MODEL_URLS);
-
-      const settled = await Promise.allSettled(
-        entries.map(([key, url]) => fetchModel(key, url))
-      );
-
-      const failed = [];
-
-      settled.forEach((result, index) => {
-        const key = entries[index][0];
-
-        if (result.status === "fulfilled") {
-          modelRows[key] = result.value;
-        } else {
-          modelRows[key] = [];
-          failed.push(MODEL_NAMES[key]);
-          console.error(result.reason);
-        }
-      });
-
-      const loadedCount = Object.values(modelRows)
-        .filter(rows => rows.length).length;
-
-      if (!loadedCount) {
-        statusElement.textContent =
-          "No forecast models could be loaded. Check the browser console.";
-        statusElement.className = "status error";
-        return;
-      }
-
-      renderDashboard();
-
-      const selectedDayLabel =
-        forecastDaySelect.options[forecastDaySelect.selectedIndex].text;
-
-      statusElement.textContent = failed.length
-        ? `${selectedDayLabel}: loaded ${loadedCount} models. Unavailable: ${failed.join(", ")}.`
-        : `${selectedDayLabel}: all four models updated ${new Date().toLocaleString("en-NZ")}`;
-
-      statusElement.className = failed.length ? "status error" : "status";
-    }
-
-    function selectedRows(rows) {
-      const startHour = Number(startHourSelect.value);
-      const endHour = Number(endHourSelect.value);
-      const selectedDayOffset = Number(forecastDaySelect.value);
-
-      const now = new Date();
-      const localToday = new Date(
-        now.toLocaleString("en-US", {
-          timeZone: "Pacific/Auckland"
-        })
-      );
-
-      const target = new Date(localToday);
-      target.setHours(0, 0, 0, 0);
-      target.setDate(target.getDate() + selectedDayOffset);
-
-      const targetDate = [
-        target.getFullYear(),
-        String(target.getMonth() + 1).padStart(2, "0"),
-        String(target.getDate()).padStart(2, "0")
-      ].join("-");
-
-      return rows.filter(
-        row =>
-          row.time.slice(0, 10) === targetDate &&
-          row.hour >= startHour &&
-          row.hour <= endHour
-      );
-    }
-
-    function summarise(rows) {
-      return {
-        cloud:average(rows.map(row => row.cloud)),
-        lowCloud:average(rows.map(row => row.lowCloud)),
-        midCloud:average(rows.map(row => row.midCloud)),
-        highCloud:average(rows.map(row => row.highCloud)),
-        wind:maximum(rows.map(row => row.wind)),
-        gust:maximum(rows.map(row => row.gust)),
-        visibility:minimum(rows.map(row => row.visibility)),
-        temperature:average(rows.map(row => row.temperature)),
-        dewPoint:average(rows.map(row => row.dewPoint))
-      };
-    }
-
-    function getConfidence(summaries) {
-      const independent = ["ecmwf", "gfs", "jma"]
+    function confidenceAssessment(summaries) {
+      const values = ["ecmwf", "gfs", "icon"]
         .map(key => summaries[key]?.cloud)
         .filter(Number.isFinite);
 
-      if (independent.length < 2) {
+      if (values.length < 2) {
         return {
-          label:"Low",
-          className:"low",
-          spread:null,
-          reason:"Fewer than two independent models are available."
+          label: "Low",
+          className: "bad",
+          spread: null,
+          reason: "Fewer than two independent models are available."
         };
       }
 
-      const spread = Math.max(...independent) - Math.min(...independent);
+      const spread = Math.max(...values) - Math.min(...values);
 
-      if (independent.length === 3 && spread <= 15) {
+      if (values.length === 3 && spread <= 15) {
         return {
-          label:"High",
-          className:"high",
+          label: "High",
+          className: "good",
           spread,
-          reason:`All three independent models are within ${spread.toFixed(0)} percentage points.`
+          reason: `All three independent models are within ${spread.toFixed(0)} points.`
         };
       }
 
       if (spread <= 30) {
         return {
-          label:"Medium",
-          className:"medium",
+          label: "Medium",
+          className: "warn",
           spread,
-          reason:`Independent models differ by ${spread.toFixed(0)} percentage points.`
+          reason: `Independent models differ by ${spread.toFixed(0)} points.`
         };
       }
 
       return {
-        label:"Low",
-        className:"low",
+        label: "Low",
+        className: "bad",
         spread,
-        reason:`Independent models differ by ${spread.toFixed(0)} percentage points.`
+        reason: `Independent models differ by ${spread.toFixed(0)} points.`
       };
     }
 
-    function renderDashboard() {
-      const startHour = Number(startHourSelect.value);
-      const endHour = Number(endHourSelect.value);
 
-      if (endHour < startHour) {
-        statusElement.textContent =
-          "The end time must be after the start time.";
-        statusElement.className = "status error";
-        resultsElement.hidden = true;
-        return;
+    function clamp(value, minValue, maxValue) {
+      return Math.min(maxValue, Math.max(minValue, value));
+    }
+
+    function fogRiskFromTempDew(temperature, dewPoint) {
+      if (!Number.isFinite(temperature) || !Number.isFinite(dewPoint)) {
+        return {
+          label: "Unknown",
+          className: "info",
+          gap: null,
+          detail: "Temperature or dew point unavailable."
+        };
       }
+
+      const gap = temperature - dewPoint;
+
+      if (gap <= 1.5) {
+        return {
+          label: "High",
+          className: "bad",
+          gap,
+          detail: `Temperature–dew point gap is ${gap.toFixed(1)}°C.`
+        };
+      }
+
+      if (gap <= 3) {
+        return {
+          label: "Medium",
+          className: "warn",
+          gap,
+          detail: `Temperature–dew point gap is ${gap.toFixed(1)}°C.`
+        };
+      }
+
+      return {
+        label: "Low",
+        className: "good",
+        gap,
+        detail: `Temperature–dew point gap is ${gap.toFixed(1)}°C.`
+      };
+    }
+
+    function hourlySkyScore(row, confidenceLabel = "Medium") {
+      const totalCloud = Number.isFinite(row.cloud) ? row.cloud : 100;
+      const lowCloud = Number.isFinite(row.lowCloud) ? row.lowCloud : totalCloud;
+      const wind = Number.isFinite(row.wind) ? row.wind : 25;
+      const visibilityKm = Number.isFinite(row.visibility)
+        ? row.visibility / 1000
+        : 0;
+
+      const fog = fogRiskFromTempDew(row.temperature, row.dewPoint);
+
+      const cloudPenalty =
+        clamp(totalCloud, 0, 100) * 0.30 +
+        clamp(lowCloud, 0, 100) * 0.20;
+
+      const windPenalty = clamp((wind / 25) * 20, 0, 20);
+      const visibilityPenalty =
+        clamp(((20 - visibilityKm) / 20) * 15, 0, 15);
+
+      let fogPenalty = 4;
+      if (fog.label === "High") fogPenalty = 10;
+      if (fog.label === "Medium") fogPenalty = 6;
+      if (fog.label === "Low") fogPenalty = 1;
+
+      let confidenceBonus = 3;
+      if (confidenceLabel === "High") confidenceBonus = 5;
+      if (confidenceLabel === "Low") confidenceBonus = 0;
+
+      return Math.round(
+        clamp(
+          100 -
+          cloudPenalty -
+          windPenalty -
+          visibilityPenalty -
+          fogPenalty +
+          confidenceBonus,
+          0,
+          100
+        )
+      );
+    }
+
+    function skyScoreLabel(score) {
+      if (score >= 90) return { label: "Excellent", className: "good" };
+      if (score >= 75) return { label: "Very Good", className: "good" };
+      if (score >= 60) return { label: "Marginal", className: "warn" };
+      return { label: "Not Recommended", className: "bad" };
+    }
+
+    function recommendationMetrics(rows, confidenceLabel) {
+      if (!rows.length) {
+        return {
+          overallScore: null,
+          bestHour: "—",
+          peakScore: null,
+          peakLabel: { label: "Unknown", className: "info" }
+        };
+      }
+
+      const scored = rows.map(row => ({
+        ...row,
+        score: hourlySkyScore(row, confidenceLabel)
+      }));
+
+      const overallScore = Math.round(
+        scored.reduce((sum, row) => sum + row.score, 0) / scored.length
+      );
+
+      const best = scored.reduce(
+        (currentBest, row) =>
+          row.score > currentBest.score ? row : currentBest,
+        scored[0]
+      );
+
+      return {
+        overallScore,
+        bestHour: formatTime(best.time),
+        peakScore: best.score,
+        peakLabel: skyScoreLabel(best.score)
+      };
+    }
+
+    function bestViewingWindow(rows, confidenceLabel) {
+      if (!rows.length) {
+        return "No hourly Best Match data is available for the selected period.";
+      }
+
+      const scored = rows.map(row => ({
+        ...row,
+        score: hourlySkyScore(row, confidenceLabel)
+      }));
+
+      let bestStart = 0;
+      let bestEnd = 0;
+      let currentStart = 0;
+
+      for (let i = 1; i < scored.length; i++) {
+        const previousGood = scored[i - 1].score >= 75;
+        const currentGood = scored[i].score >= 75;
+
+        if (!previousGood && currentGood) {
+          currentStart = i;
+        }
+
+        if (
+          previousGood &&
+          (!currentGood || i === scored.length - 1)
+        ) {
+          const candidateEnd =
+            currentGood && i === scored.length - 1 ? i : i - 1;
+
+          if (candidateEnd - currentStart > bestEnd - bestStart) {
+            bestStart = currentStart;
+            bestEnd = candidateEnd;
+          }
+        }
+      }
+
+      const bestRow = scored.reduce(
+        (best, row) => row.score > best.score ? row : best,
+        scored[0]
+      );
+
+      if (scored[bestStart].score >= 75) {
+        const startText = formatTime(scored[bestStart].time);
+        const endText = formatTime(scored[bestEnd].time);
+
+        if (bestStart === bestEnd) {
+          return `Best conditions are expected around ${startText}, with a score of ${scored[bestStart].score}/100.`;
+        }
+
+        return `Best viewing window is approximately ${startText} to ${endText}. Peak score is ${bestRow.score}/100 at ${formatTime(bestRow.time)}.`;
+      }
+
+      return `Conditions remain marginal or poor throughout the selected period. Best available hour is ${formatTime(bestRow.time)} at ${bestRow.score}/100.`;
+    }
+
+    function render() {
+      updateAutomaticWindowDisplay();
 
       const selected = {};
       const summaries = {};
 
-      Object.keys(modelRows).forEach(key => {
-        selected[key] = selectedRows(modelRows[key]);
+      Object.keys(state.rows).forEach(key => {
+        selected[key] = selectRows(state.rows[key]);
 
         if (selected[key].length) {
           summaries[key] = summarise(selected[key]);
         }
       });
 
-      renderHeadline(summaries);
-      renderComparison(summaries);
-      renderHourlyTables(selected);
+      state.summaries = summaries;
 
-      resultsElement.hidden = false;
+      renderHero(summaries, selected);
+      renderComparison(summaries);
+      renderHourly(selected);
     }
 
-    function renderHeadline(summaries) {
+    function renderHero(summaries, selected) {
       const best = summaries.best;
-      const confidence = getConfidence(summaries);
-      const availableCount = Object.keys(summaries).length;
+      const confidence = confidenceAssessment(summaries);
+      const bestRows = selected.best || [];
 
-      setValue(
-        "confidenceValue",
-        confidence.label,
-        confidence.className
-      );
-
-      document.getElementById("confidenceReason").textContent =
-        confidence.reason;
-
-      setValue(
-        "cloudSpread",
-        Number.isFinite(confidence.spread)
-          ? `${confidence.spread.toFixed(0)} points`
-          : "—",
-        "neutral"
-      );
-
-      setValue(
-        "modelsAvailable",
-        `${availableCount} of 4`,
-        "neutral"
-      );
+      el("confidence").textContent = confidence.label;
+      el("confidence").className = `decision ${confidence.className}`;
+      el("confidenceReason").textContent = confidence.reason;
+      el("cloudSpread").textContent = Number.isFinite(confidence.spread)
+        ? `${confidence.spread.toFixed(0)} points`
+        : "—";
+      el("modelsAvailable").textContent =
+        `${Object.keys(summaries).length} of 4`;
 
       if (!best) {
-        setValue("overallResult", "UNAVAILABLE", "no-go");
-        document.getElementById("overallReason").textContent =
-          "Best Match could not be loaded. Review the individual model results.";
+        el("skyScore").textContent = "—";
+        el("skyScoreLabel").textContent = "";
+        el("fogRisk").textContent = "—";
+        el("fogRiskDetail").textContent = "";
+        el("recommendationOverallScore").textContent = "—";
+        el("recommendationOverallLabel").textContent = "";
+        el("recommendationBestHour").textContent = "—";
+        el("recommendationPeakScore").textContent = "—";
+        el("recommendationPeakLabel").textContent = "";
+        el("recommendationFogRisk").textContent = "—";
+        el("recommendationFogDetail").textContent = "";
 
-        setValue("bestCloud", "—", "neutral");
-        setValue("bestWind", "—", "neutral");
-        document.getElementById("bestCloudRating").textContent = "";
-        document.getElementById("bestWindRating").textContent = "";
+        el("recommendationText").textContent =
+          "Best Match is unavailable, so a night-sky score cannot be calculated.";
+        el("decision").textContent = "UNAVAILABLE";
+        el("decision").className = "decision bad";
+        el("decisionReason").textContent =
+          "Best Match is unavailable. Review the individual models.";
+        ["bestCloud", "bestWind", "bestGust", "bestVisibility"]
+          .forEach(id => el(id).textContent = "—");
         return;
       }
 
+      const decision = operationalAssessment(best);
       const cloud = cloudAssessment(best.cloud);
       const wind = windAssessment(best.wind);
-      const overall = overallAssessment(best);
+      const fog = fogRiskFromTempDew(best.temperature, best.dewPoint);
 
-      setValue("overallResult", overall.label, overall.className);
-      document.getElementById("overallReason").textContent = overall.reason;
-
-      setValue(
-        "bestCloud",
-        `${formatNumber(best.cloud)}%`,
-        cloud.className
+      const scores = bestRows.map(row =>
+        hourlySkyScore(row, confidence.label)
       );
 
-      document.getElementById("bestCloudRating").textContent =
-        cloud.label;
+      const overallScore = scores.length
+        ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+        : null;
 
-      document.getElementById("bestCloudRating").className =
-        `detail ${cloud.className}`;
+      const scoreLabel = Number.isFinite(overallScore)
+        ? skyScoreLabel(overallScore)
+        : { label: "Unknown", className: "info" };
 
-      setValue(
-        "bestWind",
-        `${formatNumber(best.wind)} km/h`,
-        wind.className
-      );
+      el("skyScore").textContent =
+        Number.isFinite(overallScore) ? `${overallScore}/100` : "—";
+      el("skyScore").className = `metric-value ${scoreLabel.className}`;
+      el("skyScoreLabel").textContent = scoreLabel.label;
+      el("skyScoreLabel").className = `metric-detail ${scoreLabel.className}`;
 
-      document.getElementById("bestWindRating").textContent =
-        wind.label;
+      el("fogRisk").textContent = fog.label;
+      el("fogRisk").className = `metric-value ${fog.className}`;
+      el("fogRiskDetail").textContent = fog.detail;
+      el("fogRiskDetail").className = `metric-detail ${fog.className}`;
 
-      document.getElementById("bestWindRating").className =
-        `detail ${wind.className}`;
+      const recommendation =
+        recommendationMetrics(bestRows, confidence.label);
+
+      el("recommendationOverallScore").textContent =
+        Number.isFinite(recommendation.overallScore)
+          ? `${recommendation.overallScore}/100`
+          : "—";
+
+      el("recommendationOverallScore").className =
+        `metric-value ${scoreLabel.className}`;
+
+      el("recommendationOverallLabel").textContent =
+        scoreLabel.label;
+
+      el("recommendationOverallLabel").className =
+        `metric-detail ${scoreLabel.className}`;
+
+      el("recommendationBestHour").textContent =
+        recommendation.bestHour;
+
+      el("recommendationPeakScore").textContent =
+        Number.isFinite(recommendation.peakScore)
+          ? `${recommendation.peakScore}/100`
+          : "—";
+
+      el("recommendationPeakScore").className =
+        `metric-value ${recommendation.peakLabel.className}`;
+
+      el("recommendationPeakLabel").textContent =
+        recommendation.peakLabel.label;
+
+      el("recommendationPeakLabel").className =
+        `metric-detail ${recommendation.peakLabel.className}`;
+
+      el("recommendationFogRisk").textContent =
+        fog.label;
+
+      el("recommendationFogRisk").className =
+        `metric-value ${fog.className}`;
+
+      el("recommendationFogDetail").textContent =
+        fog.detail;
+
+      el("recommendationFogDetail").className =
+        `metric-detail ${fog.className}`;
+
+      el("recommendationText").textContent =
+        `${bestViewingWindow(bestRows, confidence.label)} ` +
+        `Overall selected-period score: ${
+          Number.isFinite(overallScore) ? overallScore : "—"
+        }/100. Fog risk: ${fog.label}.`;
+
+      el("decision").textContent = decision.label;
+      el("decision").className = `decision ${decision.className}`;
+      el("decisionReason").textContent = decision.reason;
+
+      el("bestCloud").textContent = `${fmt(best.cloud)}%`;
+      el("bestCloud").className = `metric-value ${cloud.className}`;
+      el("bestCloudLabel").textContent = cloud.label;
+      el("bestCloudLabel").className = `metric-detail ${cloud.className}`;
+
+      el("bestWind").textContent = `${fmt(best.wind)} km/h`;
+      el("bestWind").className = `metric-value ${wind.className}`;
+      el("bestWindLabel").textContent = wind.label;
+      el("bestWindLabel").className = `metric-detail ${wind.className}`;
+
+      el("bestGust").textContent = `${fmt(best.gust)} km/h`;
+      el("bestVisibility").textContent =
+        Number.isFinite(best.visibility)
+          ? `${fmt(best.visibility / 1000, 1)} km`
+          : "—";
     }
 
     function renderComparison(summaries) {
-      const body = document.getElementById("comparisonTable");
-
-      body.innerHTML = ["best", "ecmwf", "gfs", "jma"]
-        .map(key => comparisonRow(key, summaries[key]))
-        .join("");
+      el("comparisonBody").innerHTML =
+        ["best", "ecmwf", "gfs", "icon"]
+          .map(key => comparisonRow(key, summaries[key]))
+          .join("");
     }
 
     function comparisonRow(key, summary) {
+      const name = MODEL_CONFIG[key].name;
+
       if (!summary) {
         return `
           <tr>
-            <td>${MODEL_NAMES[key]}</td>
-            <td colspan="8" class="error">Unavailable</td>
+            <td>${name}</td>
+            <td colspan="8" class="bad">Unavailable</td>
           </tr>
         `;
       }
 
-      const overall = overallAssessment(summary);
+      const assessment = operationalAssessment(summary);
 
       return `
         <tr>
-          <td>${MODEL_NAMES[key]}</td>
-          <td>${formatNumber(summary.cloud)}%</td>
-          <td>${formatNumber(summary.lowCloud)}%</td>
-          <td>${formatNumber(summary.midCloud)}%</td>
-          <td>${formatNumber(summary.highCloud)}%</td>
-          <td>${formatNumber(summary.wind)} km/h</td>
-          <td>${formatNumber(summary.gust)} km/h</td>
+          <td>${name}</td>
+          <td>${fmt(summary.cloud)}%</td>
+          <td>${fmt(summary.lowCloud)}%</td>
+          <td>${fmt(summary.midCloud)}%</td>
+          <td>${fmt(summary.highCloud)}%</td>
+          <td>${fmt(summary.wind)} km/h</td>
+          <td>${fmt(summary.gust)} km/h</td>
           <td>${
             Number.isFinite(summary.visibility)
-              ? `${formatNumber(summary.visibility / 1000, 1)} km`
+              ? `${fmt(summary.visibility / 1000, 1)} km`
               : "—"
           }</td>
-          <td class="${overall.className}">
-            <strong>${overall.label}</strong>
+          <td class="${assessment.className}">
+            <strong>${assessment.label}</strong>
           </td>
         </tr>
       `;
     }
 
-    function renderHourlyTables(selected) {
-      ["best", "ecmwf", "gfs", "jma"].forEach(key => {
-        const body = document.getElementById(`${key}Table`);
+    function renderHourly(selected) {
+      ["best", "ecmwf", "gfs", "icon"].forEach(key => {
+        const body = el(`${key}Table`);
         const rows = selected[key] || [];
 
         if (!rows.length) {
           body.innerHTML =
-            `<tr><td colspan="7" class="error">Unavailable</td></tr>`;
+            '<tr><td colspan="9" class="bad">Unavailable</td></tr>';
           return;
         }
 
-        body.innerHTML = rows.map(row => `
-          <tr>
-            <td>${formatTime(row.time)}</td>
-            <td>${formatNumber(row.cloud)}%</td>
-            <td>${formatNumber(row.lowCloud)}%</td>
-            <td>${formatNumber(row.midCloud)}%</td>
-            <td>${formatNumber(row.highCloud)}%</td>
-            <td>${formatNumber(row.wind)} km/h</td>
-            <td>${formatNumber(row.gust)} km/h</td>
-          </tr>
-        `).join("");
+        const confidenceLabel =
+          el("confidence").textContent.trim() || "Medium";
+
+        body.innerHTML = rows.map(row => {
+          const score = hourlySkyScore(row, confidenceLabel);
+          const rating = skyScoreLabel(score);
+
+          return `
+            <tr>
+              <td>${formatTime(row.time)}</td>
+              <td>${fmt(row.cloud)}%</td>
+              <td>${fmt(row.lowCloud)}%</td>
+              <td>${fmt(row.midCloud)}%</td>
+              <td>${fmt(row.highCloud)}%</td>
+              <td>${fmt(row.wind)} km/h</td>
+              <td>${fmt(row.gust)} km/h</td>
+              <td class="${rating.className}"><strong>${score}</strong></td>
+              <td class="${rating.className}">${rating.label}</td>
+            </tr>
+          `;
+        }).join("");
       });
     }
 
-    function formatTime(time) {
-      return new Date(time).toLocaleTimeString(
-        "en-NZ",
-        {
-          hour:"numeric",
-          minute:"2-digit"
-        }
-      );
+    function fmt(value, digits = 0) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "—";
     }
 
-    function setValue(id, text, className = "") {
-      const element = document.getElementById(id);
-      element.textContent = text;
-      element.className = `value ${className}`.trim();
+    function formatTime(time) {
+      return new Date(time).toLocaleTimeString("en-NZ", {
+        hour: "numeric",
+        minute: "2-digit"
+      });
     }
 
     loadAllModels();
