@@ -280,7 +280,7 @@
         <label>
           Location
           <select id="locationSelect">
-            <option value="waikato" selected>Waikato — Takapoto Estate</option>
+            <option value="waikato" selected>Waikato</option>
             <option value="kaikoura">Kaikōura</option>
           </select>
         </label>
@@ -569,7 +569,11 @@
 
       <div class="controls">
         <label>Guide name
-          <input type="text" id="guideNameInput" placeholder="e.g. Jamie" autocomplete="off" />
+          <select id="guideNameInput">
+            <option value="" selected disabled>Select guide…</option>
+            <option value="Meghan">Meghan</option>
+            <option value="Rachel">Rachel</option>
+          </select>
         </label>
 
         <label>Manual decision
@@ -623,7 +627,7 @@
 
     const LOCATIONS = {
       waikato: {
-        name: "Waikato — Takapoto Estate",
+        name: "Waikato",
         latitude: -37.98642,
         longitude: 175.65366
       },
